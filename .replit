@@ -22,7 +22,7 @@ args = "Streamlit Server"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Test Server"
+args = "University Analytics"
 
 [[workflows.workflow]]
 name = "Streamlit Server"
@@ -34,12 +34,12 @@ args = "streamlit run app.py --server.port 5000"
 waitForPort = 5000
 
 [[workflows.workflow]]
-name = "Test Server"
+name = "University Analytics"
 author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "streamlit run test_app.py --server.port 5000 --server.address 0.0.0.0"
+args = "streamlit run app.py --server.port 5000 --server.address 0.0.0.0 --server.headless true"
 waitForPort = 5000
 
 [[ports]]
