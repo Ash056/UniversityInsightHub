@@ -99,7 +99,7 @@ class VisualizationModule:
                         title=f"Distribution of {primary_metric}",
                         marginal="box"
                     )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True, key="dashboard_histogram")
             
             with col2:
                 # Box plot or bar chart
@@ -128,7 +128,7 @@ class VisualizationModule:
                         title=f"Quantile Plot: {primary_metric}",
                         labels={'x': 'Quantile', 'y': primary_metric}
                     )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True, key="dashboard_quantile")
         
         # Additional visualizations for categorical data
         if categorical_cols:
@@ -154,7 +154,7 @@ class VisualizationModule:
                         labels={'x': selected_cat, 'y': 'Count'}
                     )
                     fig.update_layout(xaxis_tickangle=-45)
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, use_container_width=True, key="dashboard_bar_chart")
                 
                 with col2:
                     # Pie chart
@@ -162,7 +162,7 @@ class VisualizationModule:
                         values=value_counts.values, names=value_counts.index,
                         title=f"Proportion of {selected_cat}"
                     )
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, use_container_width=True, key="dashboard_pie_chart")
     
     def _create_multidimensional_analysis(self, df):
         """Create multidimensional analysis visualizations"""
@@ -208,7 +208,7 @@ class VisualizationModule:
                 )
             )
         
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, key="multidim_scatter")
         
         # Correlation matrix for selected variables
         if len(numeric_cols) >= 3:
@@ -229,7 +229,7 @@ class VisualizationModule:
                     aspect="auto",
                     text_auto=True
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True, key="multidim_correlation")
         
         # 3D visualization if available
         if len(numeric_cols) >= 3:
@@ -240,7 +240,7 @@ class VisualizationModule:
                 df, x=x_var, y=y_var, z=z_var, color=color_var,
                 title=f"3D Scatter Plot: {x_var}, {y_var}, {z_var}"
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key="multidim_3d_scatter")
     
     def _create_comparative_analysis(self, df):
         """Create comparative analysis visualizations"""
@@ -283,7 +283,7 @@ class VisualizationModule:
                         title=f"Distribution of {var} by {compare_by}"
                     )
                     fig.update_layout(xaxis_tickangle=-45)
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, use_container_width=True, key=f"comparative_box_{var}")
                 
                 # Summary statistics table
                 summary_stats = comparison_df.groupby(compare_by)[selected_numeric].agg(['mean', 'median', 'std', 'count']).round(2)
@@ -307,7 +307,7 @@ class VisualizationModule:
                 labels={'x': compare_by, 'y': 'Count'}
             )
             fig.update_layout(xaxis_tickangle=-45)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key="comparative_stacked_bar")
             
             # Normalized stacked bar chart
             contingency_norm = contingency.div(contingency.sum(axis=1), axis=0)
@@ -317,7 +317,7 @@ class VisualizationModule:
                 labels={'x': compare_by, 'y': 'Proportion'}
             )
             fig.update_layout(xaxis_tickangle=-45)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key="comparative_normalized_bar")
     
     def _create_trend_analysis(self, df):
         """Create trend analysis visualizations"""
@@ -373,7 +373,7 @@ class VisualizationModule:
                     title=f"{agg_level} Trend of {metric_col}",
                     labels={'mean': f'Average {metric_col}', 'period': 'Time Period'}
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True, key="trend_line_plot")
                 
                 # Add confidence intervals if enough data
                 if not trend_data['std'].isna().all():
@@ -402,7 +402,7 @@ class VisualizationModule:
                     ))
                     
                     fig.update_layout(title=f"{agg_level} Trend with Confidence Interval")
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, use_container_width=True, key="trend_confidence_interval")
                 
             except Exception as e:
                 st.error(f"Error processing date column: {str(e)}")
@@ -447,7 +447,7 @@ class VisualizationModule:
                     xaxis_title="Index",
                     yaxis_title="Values"
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True, key="trend_moving_averages")
     
     def _create_custom_viz_builder(self, df):
         """Create custom visualization builder"""
@@ -567,7 +567,7 @@ class VisualizationModule:
                 template=theme
             )
             
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key="custom_viz_builder")
             
             # Export option
             if st.button("Export Chart as HTML"):
