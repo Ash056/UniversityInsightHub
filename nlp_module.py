@@ -85,6 +85,11 @@ class NLPModule:
                 "Additional stopwords (comma-separated):",
                 placeholder="word1, word2, word3"
             )
+        # Use session_state to persist processed data
+        if "processed_data" not in st.session_state:
+            st.session_state.processed_data = None
+            st.session_state.processed_columns = None
+            
         
         if st.button("Process Text"):
             # Add custom stopwords
@@ -98,11 +103,11 @@ class NLPModule:
             for col in selected_columns:
                 st.write(f"**Processing column: {col}**")
                 
-                # Extract and clean text
+                # # Extract and clean text
                 text_data = df[col].dropna().astype(str)
                 
-                # Basic statistics
-                self._show_text_statistics(text_data, col)
+                # # Basic statistics
+                # self._show_text_statistics(text_data, col)
                 
                 # Preprocess text
                 processed_text = self._preprocess_text_column(
@@ -118,17 +123,27 @@ class NLPModule:
                     'processed': processed_text,
                     'tokens': self._tokenize_texts(processed_text)
                 }
-                
+            # Store in session_state
+            st.session_state.processed_data = processed_data
+            st.session_state.processed_columns = selected_columns
+        # If processed data exists, show analysis widgets
+        if st.session_state.processed_data:
+            for col in st.session_state.processed_columns:
+                st.write(f"**Processing column: {col}**")
+                # Basic statistics
+
+                text_data = df[col].dropna().astype(str)
+                self._show_text_statistics(text_data, col)
                 # Word frequency analysis
-                self._show_word_frequency_analysis(processed_data[col]['tokens'], col)
+                self._show_word_frequency_analysis(st.session_state.processed_data[col]['tokens'], col)
                 
                 # Word cloud
-                self._generate_word_cloud(processed_data[col]['tokens'], col)
+                self._generate_word_cloud(st.session_state.processed_data[col]['tokens'], col)
                 
                 # N-gram analysis
-                self._show_ngram_analysis(processed_data[col]['tokens'], col)
+                self._show_ngram_analysis(st.session_state.processed_data[col]['tokens'], col)
             
-            return processed_data
+            return st.session_state.processed_data
         
         return None
     

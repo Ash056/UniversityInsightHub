@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import streamlit as st
 from io import StringIO
+import warnings
 
 class DataHandler:
     def __init__(self):
@@ -47,8 +48,8 @@ class DataHandler:
         # Check for missing values
         missing_percentage = (df.isnull().sum() / len(df)) * 100
         high_missing = missing_percentage[missing_percentage > 50]
-        if not high_missing.empty:
-            st.warning(f"Columns with >50% missing values: {high_missing.index.tolist()}")
+        # if not high_missing.empty:
+            # st.warning(f"Columns with >50% missing values: {high_missing.index.tolist()}")
     
     def identify_text_columns(self, df):
         """Identify potential text columns for NLP analysis"""
@@ -60,7 +61,30 @@ class DataHandler:
                 if avg_length > 20:
                     text_columns.append(col)
         return text_columns
-    
+    def identify_datetime_columns(self, df, threshold=0.8):
+        """
+        Identify columns that are likely to be datetime columns.
+        Returns a list of column names.
+        """
+        datetime_cols = []
+        for col in df.columns:
+            # If already datetime dtype, add directly
+            if pd.api.types.is_datetime64_any_dtype(df[col]):
+                df[col] = df[col].dt.strftime('%Y-%m-01 00:00')
+                datetime_cols.append(col)
+            # If object, try to parse and check if most values are valid dates
+            elif df[col].dtype == 'object':
+                try:
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore")
+                    parsed = pd.to_datetime(df[col], errors='coerce')
+                    # If at least `threshold` of non-null values are parsed as dates, consider as datetime
+                    if parsed.notnull().mean() > threshold:
+                        df[col] = df[col].dt.strftime('%Y-%m-01 00:00')
+                        datetime_cols.append(col)
+                except Exception:
+                    pass
+        return datetime_cols
     def identify_numeric_columns(self, df):
         """Identify numeric columns for statistical analysis"""
         return df.select_dtypes(include=[np.number]).columns.tolist()

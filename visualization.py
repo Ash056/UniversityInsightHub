@@ -45,7 +45,8 @@ class VisualizationModule:
         # Get column types
         numeric_cols = self.data_handler.identify_numeric_columns(df)
         categorical_cols = self.data_handler.identify_categorical_columns(df)
-        
+        date_cols = self.data_handler.identify_datetime_columns(df)
+
         if not numeric_cols and not categorical_cols:
             st.warning("No suitable columns found for dashboard creation.")
             return
@@ -61,7 +62,7 @@ class VisualizationModule:
         
         with col2:
             if categorical_cols:
-                grouping_var = st.selectbox("Grouping variable:", ["None"] + categorical_cols)
+                grouping_var = st.selectbox("Grouping variable:", ["None"] + date_cols + categorical_cols)
                 if grouping_var == "None":
                     grouping_var = None
             else:
@@ -170,7 +171,8 @@ class VisualizationModule:
         
         numeric_cols = self.data_handler.identify_numeric_columns(df)
         categorical_cols = self.data_handler.identify_categorical_columns(df)
-        
+        date_cols = self.data_handler.identify_datetime_columns(df)
+
         if len(numeric_cols) < 2:
             st.warning("Need at least 2 numeric columns for multi-dimensional analysis.")
             return
@@ -183,12 +185,12 @@ class VisualizationModule:
         with col2:
             y_var = st.selectbox("Y-axis variable:", [col for col in numeric_cols if col != x_var])
         with col3:
-            color_var = st.selectbox("Color variable:", ["None"] + categorical_cols + numeric_cols)
+            color_var = st.selectbox("Color variable:", ["None"] + date_cols + categorical_cols + numeric_cols)
             if color_var == "None":
                 color_var = None
         
         # Additional dimensions
-        size_var = st.selectbox("Size variable (optional):", ["None"] + numeric_cols)
+        size_var = st.selectbox("Size variable (optional):", ["None"] + date_cols+ numeric_cols)
         if size_var == "None":
             size_var = None
         
@@ -322,17 +324,23 @@ class VisualizationModule:
     def _create_trend_analysis(self, df):
         """Create trend analysis visualizations"""
         st.subheader("📈 Trend Analysis")
-        
+        date_cols = self.data_handler.identify_datetime_columns(df)
+        date_cols = list(set(date_cols))  # Remove duplicates
         # Look for date/time columns
-        date_cols = []
-        for col in df.columns:
-            if df[col].dtype == 'object':
-                # Try to parse as datetime
-                try:
-                    pd.to_datetime(df[col].head())
-                    date_cols.append(col)
-                except:
-                    pass
+        # date_cols = []
+        # for col in df.columns:
+        #     # If already datetime dtype, add directly
+        #     if pd.api.types.is_datetime64_any_dtype(df[col]):
+        #         date_cols.append(col)
+        #     # If object, try to parse and check if most values are valid dates
+        #     elif df[col].dtype == 'object':
+        #         try:
+        #             parsed = pd.to_datetime(df[col], errors='coerce')
+        #             # If at least 80% of non-null values are parsed as dates, consider as date column
+        #             if parsed.notnull().mean() > 0.8:
+        #                 date_cols.append(col)
+        #         except Exception:
+        #             pass
         
         numeric_cols = self.data_handler.identify_numeric_columns(df)
         
@@ -464,15 +472,16 @@ class VisualizationModule:
         # Get available columns
         numeric_cols = self.data_handler.identify_numeric_columns(df)
         categorical_cols = self.data_handler.identify_categorical_columns(df)
+        date_cols = self.data_handler.identify_datetime_columns(df)
         all_cols = list(df.columns)
         
         # Dynamic parameter selection based on chart type
         if chart_type == "Scatter Plot":
             col1, col2, col3 = st.columns(3)
             with col1:
-                x_col = st.selectbox("X-axis:", numeric_cols + categorical_cols)
+                x_col = st.selectbox("X-axis:", date_cols + numeric_cols + categorical_cols)
             with col2:
-                y_col = st.selectbox("Y-axis:", numeric_cols)
+                y_col = st.selectbox("Y-axis:", date_cols+  numeric_cols)
             with col3:
                 color_col = st.selectbox("Color by:", ["None"] + all_cols)
             
@@ -487,7 +496,7 @@ class VisualizationModule:
             with col1:
                 x_col = st.selectbox("X-axis:", all_cols)
             with col2:
-                y_col = st.selectbox("Y-axis:", numeric_cols)
+                y_col = st.selectbox("Y-axis:", date_cols + numeric_cols)
             
             fig = px.line(df, x=x_col, y=y_col, 
                          title=f"Custom Line Chart: {x_col} vs {y_col}")
@@ -497,7 +506,7 @@ class VisualizationModule:
             with col1:
                 x_col = st.selectbox("Category:", categorical_cols + all_cols)
             with col2:
-                y_col = st.selectbox("Value:", ["Count"] + numeric_cols)
+                y_col = st.selectbox("Value:", ["Count"] + date_cols + numeric_cols)
             
             if y_col == "Count":
                 value_counts = df[x_col].value_counts()

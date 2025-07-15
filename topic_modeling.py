@@ -3,15 +3,12 @@ import pandas as pd
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 from sklearn.decomposition import LatentDirichletAllocation
-from sklearn.cluster import KMeans
 import plotly.express as px
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import matplotlib.pyplot as plt
 from wordcloud import WordCloud
-import pyLDAvis
-import pyLDAvis.lda_model
-from collections import Counter
+import tempfile
+from fpdf import FPDF
+import os
 
 class TopicModelingModule:
     def __init__(self):
@@ -19,57 +16,52 @@ class TopicModelingModule:
         self.lda_model = None
         self.document_term_matrix = None
         self.feature_names = None
-    
+        # For PDF export
+        self.pdf_images = []
+        self.pdf_descriptions = []
+        self.pdf_assignments_df = None
+
     def run_topic_modeling(self, processed_data):
-        """Run topic modeling analysis"""
         st.header("🎯 Topic Modeling Analysis")
-        
+
+        # Reset PDF data for each run
+        self.pdf_images = []
+        self.pdf_descriptions = []
+        self.pdf_assignments_df = None
+
         if not processed_data:
             st.warning("No processed text data available. Please run text preprocessing first.")
             return
-        
-        # Column selection
+
         available_columns = list(processed_data.keys())
         selected_column = st.selectbox(
             "Select text column for topic modeling:",
             available_columns
         )
-        
+
         if not selected_column:
             return
-        
-        # Get processed texts
+
         texts = processed_data[selected_column]['processed']
-        
-        # Filter out empty texts
         texts = [text for text in texts if text.strip()]
-        
         if len(texts) < 2:
             st.error("Need at least 2 non-empty documents for topic modeling.")
             return
-        
-        # Topic modeling parameters
+
         st.subheader("⚙️ Topic Modeling Parameters")
-        
         col1, col2, col3 = st.columns(3)
-        
         with col1:
             n_topics = st.slider("Number of topics:", 2, 20, 5)
             vectorizer_type = st.selectbox("Vectorizer type:", ["TF-IDF", "Count"])
-        
         with col2:
             max_features = st.slider("Maximum features:", 100, 5000, 1000)
             min_df = st.slider("Minimum document frequency:", 1, 10, 2)
-        
         with col3:
             max_df = st.slider("Maximum document frequency (%):", 50, 100, 95) / 100
             ngram_range = st.selectbox("N-gram range:", ["(1,1)", "(1,2)", "(1,3)"])
-        
-        # Parse ngram_range
         ngram_start, ngram_end = map(int, ngram_range.strip("()").split(","))
-        
+
         if st.button("Run Topic Modeling"):
-            # Vectorize texts
             if vectorizer_type == "TF-IDF":
                 self.vectorizer = TfidfVectorizer(
                     max_features=max_features,
@@ -86,57 +78,69 @@ class TopicModelingModule:
                     ngram_range=(ngram_start, ngram_end),
                     stop_words='english'
                 )
-            
             try:
                 self.document_term_matrix = self.vectorizer.fit_transform(texts)
                 self.feature_names = self.vectorizer.get_feature_names_out()
-                
-                # Fit LDA model
                 self.lda_model = LatentDirichletAllocation(
                     n_components=n_topics,
                     random_state=42,
                     max_iter=100,
                     learning_method='batch'
                 )
-                
                 self.lda_model.fit(self.document_term_matrix)
-                
-                # Display results
+
+                # Add description for PDF
+                self.pdf_descriptions.append(
+                    f"Topic modeling was performed on column '{selected_column}' with {n_topics} topics. "
+                    "The following visualizations and metrics summarize the discovered topics and their distribution."
+                )
+
                 self._display_topic_results(texts, n_topics, selected_column)
-                
-                # Topic distribution analysis
                 self._analyze_topic_distribution(texts, selected_column)
-                
-                # Document-topic assignment
                 self._show_document_topic_assignment(texts, selected_column)
-                
+                st.session_state.topic_model_results = {
+                "lda_model": self.lda_model,
+                "pdf_images": self.pdf_images,
+                "pdf_descriptions": self.pdf_descriptions,
+                "pdf_assignments_df": self.pdf_assignments_df}
+
             except Exception as e:
                 st.error(f"Error in topic modeling: {str(e)}")
-    
+
+        # PDF Export Button (always visible after a run)
+        if st.session_state.get("topic_model_results") and self.lda_model is not None:
+            st.subheader("📤 Export Topic Modeling Report")
+            # if st.button("Download Topic Modeling PDF Report"):
+            self.lda_model = st.session_state.topic_model_results["lda_model"]
+            self.pdf_images = st.session_state.topic_model_results["pdf_images"]
+            self.pdf_descriptions = st.session_state.topic_model_results["pdf_descriptions"]
+            self.pdf_assignments_df = st.session_state.topic_model_results["pdf_assignments_df"]
+            pdf_path = self._generate_pdf_report()
+            with open(pdf_path, "rb") as f:
+                st.download_button(
+                    label="Download PDF",
+                    data=f.read(),
+                    file_name="topic_modeling_report.pdf",
+                    mime="application/pdf"
+                )
+            os.remove(pdf_path)
+
     def _display_topic_results(self, texts, n_topics, column_name):
-        """Display topic modeling results"""
         st.subheader(f"📊 Topic Modeling Results - {column_name}")
-        
-        # Topic words
         st.write("**Topics and their top words:**")
-        
         topics_data = []
         for topic_idx, topic in enumerate(self.lda_model.components_):
             top_words_idx = topic.argsort()[-10:][::-1]
             top_words = [self.feature_names[i] for i in top_words_idx]
             top_weights = [topic[i] for i in top_words_idx]
-            
             topics_data.append({
                 'Topic': f"Topic {topic_idx + 1}",
                 'Top Words': ', '.join(top_words[:5]),
                 'All Top Words': top_words,
                 'Weights': top_weights
             })
-            
-            # Display individual topic
             with st.expander(f"Topic {topic_idx + 1}: {', '.join(top_words[:3])}"):
                 col1, col2 = st.columns(2)
-                
                 with col1:
                     # Word importance bar chart
                     fig = px.bar(
@@ -148,18 +152,22 @@ class TopicModelingModule:
                     )
                     fig.update_layout(height=400)
                     st.plotly_chart(fig, use_container_width=True)
-                
+                    # Save image for PDF
+                    img_path = tempfile.NamedTemporaryFile(delete=False, suffix=".png").name
+                    fig.write_image(img_path)
+                    self.pdf_images.append((f"Top Words in Topic {topic_idx + 1}", img_path))
                 with col2:
                     # Topic word cloud
                     word_freq = dict(zip(top_words, top_weights))
-                    self._generate_topic_wordcloud(word_freq, f"Topic {topic_idx + 1}")
-        
-        # Topics summary table
+                    wc_img_path = self._generate_topic_wordcloud(word_freq, f"Topic {topic_idx + 1}")
+                    if wc_img_path:
+                        self.pdf_images.append((f"Word Cloud for Topic {topic_idx + 1}", wc_img_path))
         summary_df = pd.DataFrame(topics_data)[['Topic', 'Top Words']]
         st.dataframe(summary_df)
-    
+        # Add summary table to PDF description
+        self.pdf_descriptions.append("Topics and their top words:\n" + summary_df.to_string(index=False))
+
     def _generate_topic_wordcloud(self, word_freq, topic_name):
-        """Generate word cloud for a specific topic"""
         if word_freq:
             wordcloud = WordCloud(
                 width=400,
@@ -167,25 +175,23 @@ class TopicModelingModule:
                 background_color='white',
                 colormap='viridis'
             ).generate_from_frequencies(word_freq)
-            
             fig, ax = plt.subplots(figsize=(6, 4))
             ax.imshow(wordcloud, interpolation='bilinear')
             ax.axis('off')
             ax.set_title(topic_name, fontsize=12)
             st.pyplot(fig)
-            plt.close()
-    
+            # Save image for PDF
+            img_path = tempfile.NamedTemporaryFile(delete=False, suffix=".png").name
+            fig.savefig(img_path)
+            plt.close(fig)
+            return img_path
+        return None
+
     def _analyze_topic_distribution(self, texts, column_name):
-        """Analyze distribution of topics across documents"""
         st.subheader(f"📈 Topic Distribution Analysis - {column_name}")
-        
-        # Get document-topic probabilities
         doc_topic_probs = self.lda_model.transform(self.document_term_matrix)
-        
-        # Topic prevalence
         topic_prevalence = doc_topic_probs.mean(axis=0)
         topic_names = [f"Topic {i+1}" for i in range(len(topic_prevalence))]
-        
         # Topic prevalence chart
         fig = px.bar(
             x=topic_names,
@@ -194,13 +200,14 @@ class TopicModelingModule:
             labels={'x': 'Topics', 'y': 'Average Probability'}
         )
         st.plotly_chart(fig, use_container_width=True)
-        
+        img_path = tempfile.NamedTemporaryFile(delete=False, suffix=".png").name
+        fig.write_image(img_path)
+        self.pdf_images.append(("Topic Prevalence Across All Documents", img_path))
         # Topic distribution heatmap
         st.write("**Document-Topic Probability Heatmap (Sample)**")
         sample_size = min(50, len(doc_topic_probs))
         sample_indices = np.random.choice(len(doc_topic_probs), sample_size, replace=False)
         sample_probs = doc_topic_probs[sample_indices]
-        
         fig = px.imshow(
             sample_probs.T,
             title=f"Topic Distribution Across {sample_size} Sample Documents",
@@ -210,78 +217,61 @@ class TopicModelingModule:
         )
         fig.update_layout(height=400)
         st.plotly_chart(fig, use_container_width=True)
-        
-        # Topic coherence and diversity metrics
+        img_path = tempfile.NamedTemporaryFile(delete=False, suffix=".png").name
+        fig.write_image(img_path)
+        self.pdf_images.append((f"Topic Distribution Across {sample_size} Sample Documents", img_path))
+        # Topic metrics
         self._calculate_topic_metrics(doc_topic_probs, topic_names)
-    
+
     def _calculate_topic_metrics(self, doc_topic_probs, topic_names):
-        """Calculate and display topic quality metrics"""
         st.write("**Topic Quality Metrics**")
-        
-        # Topic diversity (how spread out the topics are)
         topic_diversity = 1 - np.std(doc_topic_probs.mean(axis=0))
-        
-        # Document concentration (how focused documents are on specific topics)
         max_topic_probs = doc_topic_probs.max(axis=1)
         avg_concentration = max_topic_probs.mean()
-        
-        # Topic separation (how distinct topics are)
         topic_correlations = np.corrcoef(doc_topic_probs.T)
         avg_correlation = np.mean(topic_correlations[np.triu_indices_from(topic_correlations, k=1)])
-        
         col1, col2, col3 = st.columns(3)
-        
         with col1:
             st.metric("Topic Diversity", f"{topic_diversity:.3f}", help="Higher values indicate more balanced topic distribution")
-        
         with col2:
             st.metric("Avg. Document Concentration", f"{avg_concentration:.3f}", help="Higher values indicate documents are more focused on specific topics")
-        
         with col3:
             st.metric("Avg. Topic Correlation", f"{avg_correlation:.3f}", help="Lower values indicate more distinct topics")
-    
+        self.pdf_descriptions.append(
+            f"Topic Diversity: {topic_diversity:.3f}\n"
+            f"Avg. Document Concentration: {avg_concentration:.3f}\n"
+            f"Avg. Topic Correlation: {avg_correlation:.3f}"
+        )
+
     def _show_document_topic_assignment(self, texts, column_name):
-        """Show document-topic assignments"""
         st.subheader(f"📝 Document-Topic Assignment - {column_name}")
-        
-        # Get document-topic probabilities
         doc_topic_probs = self.lda_model.transform(self.document_term_matrix)
-        
-        # Assign primary topic to each document
         primary_topics = doc_topic_probs.argmax(axis=1)
         primary_topic_probs = doc_topic_probs.max(axis=1)
-        
-        # Create assignment dataframe
         assignment_df = pd.DataFrame({
             'Document_Index': range(len(texts)),
             'Primary_Topic': [f"Topic {i+1}" for i in primary_topics],
             'Confidence': primary_topic_probs,
             'Document_Preview': [text[:100] + "..." if len(text) > 100 else text for text in texts]
         })
-        
-        # Topic assignment distribution
         topic_counts = assignment_df['Primary_Topic'].value_counts()
-        
         fig = px.pie(
             values=topic_counts.values,
             names=topic_counts.index,
             title="Distribution of Primary Topic Assignments"
         )
         st.plotly_chart(fig, use_container_width=True)
-        
-        # Show sample assignments
+        img_path = tempfile.NamedTemporaryFile(delete=False, suffix=".png").name
+        fig.write_image(img_path)
+        self.pdf_images.append(("Distribution of Primary Topic Assignments", img_path))
         st.write("**Sample Document-Topic Assignments**")
-        
-        # Filter and sort by confidence
         high_confidence = assignment_df[assignment_df['Confidence'] > 0.3].sort_values('Confidence', ascending=False)
-        
         if not high_confidence.empty:
             display_df = high_confidence.head(20)[['Primary_Topic', 'Confidence', 'Document_Preview']]
             st.dataframe(display_df, use_container_width=True)
+            self.pdf_assignments_df = display_df
         else:
             st.info("No high-confidence topic assignments found. Consider adjusting the number of topics.")
-        
-        # Confidence distribution
         fig = px.histogram(
             assignment_df,
             x='Confidence',
@@ -290,48 +280,38 @@ class TopicModelingModule:
             nbins=20
         )
         st.plotly_chart(fig, use_container_width=True)
-    
-    def export_topic_results(self):
-        """Export topic modeling results"""
-        if self.lda_model is None:
-            st.warning("No topic model available for export.")
-            return
-        
-        st.subheader("📤 Export Topic Results")
-        
-        # Prepare export data
-        export_data = {
-            'topics': [],
-            'document_assignments': []
-        }
-        
-        # Export topics
-        for topic_idx, topic in enumerate(self.lda_model.components_):
-            top_words_idx = topic.argsort()[-10:][::-1]
-            top_words = [self.feature_names[i] for i in top_words_idx]
-            top_weights = [float(topic[i]) for i in top_words_idx]
-            
-            export_data['topics'].append({
-                'topic_id': topic_idx + 1,
-                'words': top_words,
-                'weights': top_weights
-            })
-        
-        # Convert to downloadable format
-        topics_df = pd.DataFrame([
-            {
-                'Topic_ID': t['topic_id'],
-                'Top_Words': ', '.join(t['words'][:5]),
-                'All_Words': ', '.join(t['words']),
-                'Weights': ', '.join([f"{w:.4f}" for w in t['weights']])
-            }
-            for t in export_data['topics']
-        ])
-        
-        csv = topics_df.to_csv(index=False)
-        st.download_button(
-            label="Download Topic Results as CSV",
-            data=csv,
-            file_name="topic_modeling_results.csv",
-            mime="text/csv"
-        )
+        img_path = tempfile.NamedTemporaryFile(delete=False, suffix=".png").name
+        fig.write_image(img_path)
+        self.pdf_images.append(("Distribution of Topic Assignment Confidence", img_path))
+
+    def _generate_pdf_report(self):
+        pdf = FPDF()
+        pdf.set_auto_page_break(auto=True, margin=15)
+        pdf.add_page()
+        pdf.set_font("Arial", size=16)
+        pdf.cell(0, 10, "Topic Modeling Report", ln=True, align='C')
+        pdf.set_font("Arial", size=12)
+        pdf.ln(5)
+        for desc in self.pdf_descriptions:
+            pdf.multi_cell(0, 10, desc)
+            pdf.ln(2)
+        for caption, img_path in self.pdf_images:
+            pdf.set_font("Arial", size=12)
+            pdf.cell(0, 10, caption, ln=True)
+            pdf.image(img_path, w=170)
+            pdf.ln(2)
+        if self.pdf_assignments_df is not None:
+            pdf.set_font("Arial", size=12)
+            pdf.cell(0, 10, "Sample Document-Topic Assignments:", ln=True)
+            for idx, row in self.pdf_assignments_df.iterrows():
+                pdf.multi_cell(0, 8, f"{row['Primary_Topic']} | Confidence: {row['Confidence']:.2f} | {row['Document_Preview']}")
+                pdf.ln(1)
+        temp_pdf = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+        pdf.output(temp_pdf.name)
+        # Clean up images
+        for _, img_path in self.pdf_images:
+            try:
+                os.remove(img_path)
+            except Exception:
+                pass
+        return temp_pdf.name
