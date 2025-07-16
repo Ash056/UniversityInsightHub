@@ -12,20 +12,21 @@ import matplotlib.pyplot as plt
 from data_handler import DataHandler
 
 # Download required NLTK data
-# try:
-#     nltk.data.find('tokenizers/punkt')
-# except LookupError:
-nltk.download('punkt')
+try:
+    nltk.data.find('tokenizers/punkt')
+except LookupError:
+    nltk.download('punkt')
+    nltk.download('punkt_tab')
 
-# try:
-#     nltk.data.find('corpora/stopwords')
-# except LookupError:
-nltk.download('stopwords')
+try:
+    nltk.data.find('corpora/stopwords')
+except LookupError:
+    nltk.download('stopwords')
 
-# try:
-#     nltk.data.find('corpora/wordnet')
-# except LookupError:
-nltk.download('wordnet')
+try:
+    nltk.data.find('corpora/wordnet')
+except LookupError:
+    nltk.download('wordnet')
 
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize, sent_tokenize
