@@ -9,6 +9,8 @@ from wordcloud import WordCloud
 import tempfile
 from fpdf import FPDF
 import os
+import plotly.io as pio
+
 
 class TopicModelingModule:
     def __init__(self):
@@ -154,7 +156,8 @@ class TopicModelingModule:
                     st.plotly_chart(fig, use_container_width=True)
                     # Save image for PDF
                     img_path = tempfile.NamedTemporaryFile(delete=False, suffix=".png").name
-                    fig.write_image(img_path)
+                    img_bytes = pio.to_image(fig, format="png")  # Create PNG bytes
+                    with open(img_path, "wb") as f: f.write(img_bytes)
                     self.pdf_images.append((f"Top Words in Topic {topic_idx + 1}", img_path))
                 with col2:
                     # Topic word cloud
@@ -201,7 +204,8 @@ class TopicModelingModule:
         )
         st.plotly_chart(fig, use_container_width=True)
         img_path = tempfile.NamedTemporaryFile(delete=False, suffix=".png").name
-        fig.write_image(img_path)
+        img_bytes = pio.to_image(fig, format="png")  # Create PNG bytes
+        with open(img_path, "wb") as f: f.write(img_bytes)
         self.pdf_images.append(("Topic Prevalence Across All Documents", img_path))
         # Topic distribution heatmap
         st.write("**Document-Topic Probability Heatmap (Sample)**")
@@ -218,7 +222,8 @@ class TopicModelingModule:
         fig.update_layout(height=400)
         st.plotly_chart(fig, use_container_width=True)
         img_path = tempfile.NamedTemporaryFile(delete=False, suffix=".png").name
-        fig.write_image(img_path)
+        img_bytes = pio.to_image(fig, format="png")  # Create PNG bytes
+        with open(img_path, "wb") as f: f.write(img_bytes)
         self.pdf_images.append((f"Topic Distribution Across {sample_size} Sample Documents", img_path))
         # Topic metrics
         self._calculate_topic_metrics(doc_topic_probs, topic_names)
@@ -262,7 +267,8 @@ class TopicModelingModule:
         )
         st.plotly_chart(fig, use_container_width=True)
         img_path = tempfile.NamedTemporaryFile(delete=False, suffix=".png").name
-        fig.write_image(img_path)
+        img_bytes = pio.to_image(fig, format="png")  # Create PNG bytes
+        with open(img_path, "wb") as f: f.write(img_bytes)
         self.pdf_images.append(("Distribution of Primary Topic Assignments", img_path))
         st.write("**Sample Document-Topic Assignments**")
         high_confidence = assignment_df[assignment_df['Confidence'] > 0.3].sort_values('Confidence', ascending=False)
@@ -281,7 +287,8 @@ class TopicModelingModule:
         )
         st.plotly_chart(fig, use_container_width=True)
         img_path = tempfile.NamedTemporaryFile(delete=False, suffix=".png").name
-        fig.write_image(img_path)
+        img_bytes = pio.to_image(fig, format="png")  # Create PNG bytes
+        with open(img_path, "wb") as f: f.write(img_bytes)
         self.pdf_images.append(("Distribution of Topic Assignment Confidence", img_path))
 
     def _generate_pdf_report(self):
