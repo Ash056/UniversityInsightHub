@@ -12,30 +12,20 @@ import matplotlib.pyplot as plt
 from data_handler import DataHandler
 
 # Download required NLTK data
-import os
+# try:
+#     nltk.data.find('tokenizers/punkt')
+# except LookupError:
+nltk.download('punkt')
 
-# Set a custom directory for NLTK data
-nltk_data_dir = os.path.join(os.path.dirname(__file__), 'nltk_data')
-if not os.path.exists(nltk_data_dir):
-    os.makedirs(nltk_data_dir)
+# try:
+#     nltk.data.find('corpora/stopwords')
+# except LookupError:
+nltk.download('stopwords')
 
-nltk.data.path.append(nltk_data_dir)
-
-# Ensure required NLTK resources are downloaded
-try:
-    nltk.data.find('tokenizers/punkt')
-except LookupError:
-    nltk.download('punkt', download_dir=nltk_data_dir)
-
-try:
-    nltk.data.find('corpora/stopwords')
-except LookupError:
-    nltk.download('stopwords', download_dir=nltk_data_dir)
-
-try:
-    nltk.data.find('corpora/wordnet')
-except LookupError:
-    nltk.download('wordnet', download_dir=nltk_data_dir)
+# try:
+#     nltk.data.find('corpora/wordnet')
+# except LookupError:
+nltk.download('wordnet')
 
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize, sent_tokenize
