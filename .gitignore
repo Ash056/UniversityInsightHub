@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.pyo
+*.pyd
+*.log
+
+# Virtual environments
+.env/
+.venv/
+env/
+venv/
+
+# Jupyter/Notebook
+.ipynb_checkpoints/
+*.ipynb
+
+# VSCode/IDE
+.vscode/
+.idea/
+*.swp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Streamlit cache
+.streamlit/config.toml
+.streamlit/secrets.toml
+.streamlit/cache/
+.streamlit/logs/
+
+# Temporary/Generated Files
+*.tmp
+*.temp
+*.bak
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.gif
+
+# PDF/image exports used in your app
+__temp__/
+tmp*/ 
+*.pdf
+*.svg
+
+# Optional: pip freeze files
+pip-log.txt
